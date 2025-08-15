@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Private Chat</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            padding: 20px;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h2 {
+            margin-bottom: 15px;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.4);
+        }
+
+        #messages {
+            width: 80%;
+            max-width: 700px;
+            height: 350px;
+            overflow-y: auto;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px);
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            margin-bottom: 15px;
+        }
+
+        .msg {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(4px);
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+
+        .thumb img, .thumb video {
+            max-width: 200px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .thumb img:hover, .thumb video:hover {
+            transform: scale(1.05);
+        }
+
+        .thumb iframe {
+            width: 200px;
+            height: 150px;
+            border-radius: 10px;
+        }
+
+        button {
+            cursor: pointer;
+            border: none;
+            background: linear-gradient(135deg, #ff4d4d, #ff9900);
+            color: white;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-weight: bold;
+            transition: 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .delete-btn {
+            background: linear-gradient(135deg, #ff4d4d, #cc0000);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        input[type="text"], input[type="file"] {
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            outline: none;
+            margin-right: 10px;
+            flex: 1;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .input-area {
+            display: flex;
+            width: 80%;
+            max-width: 700px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <h2>💬 Private Chat</h2>
+
+    <div id="messages"></div>
+
+    <div class="input-area">
+        <input id="myMessage" type="text" placeholder="Type a message...">
+        <button onclick="sendMessage()">Send</button>
+        <input type="file" id="fileInput">
+        <button onclick="sendFile()">📎 Send File</button>
+    </div>
+
+    <script>
+        const socket = io();
+        const messagesDiv = document.getElementById('messages');
+
+        fetch('/messages')
+            .then(res => res.json())
+            .then(list => {
+                list.forEach(msg => {
+                    if (msg.type === "text") {
+                        addTextMessage(msg.text, msg.id);
+                    } else if (msg.type === "file") {
+                        addFileMessage(msg.filename, msg.url, msg.id);
+                    }
+                });
+            });
+
+        socket.on('message', function(data) {
+            addTextMessage(data.text, data.id);
+        });
+
+        socket.on('file_message', function(data) {
+            addFileMessage(data.filename, data.url, data.id);
+        });
+
+        socket.on('delete_message', function(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        });
+
+        function sendMessage() {
+            const input = document.getElementById('myMessage');
+            const val = input.value.trim();
+            if (val !== "") {
+                socket.send(val);
+                input.value = '';
+            }
+        }
+
+        function sendFile() {
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput.files.length > 0) {
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                fetch('/upload', { method: 'POST', body: formData });
+                fileInput.value = '';
+            }
+        }
+
+        function addRow(id, htmlContent) {
+            const row = document.createElement('div');
+            row.className = 'msg';
+            row.id = id;
+
+            const content = document.createElement('div');
+            content.className = 'thumb';
+            content.innerHTML = htmlContent;
+
+            const del = document.createElement('button');
+            del.className = 'delete-btn';
+            del.textContent = '❌';
+            del.title = 'Delete';
+            del.onclick = () => socket.emit('delete_message', id);
+
+            row.appendChild(content);
+            row.appendChild(del);
+            messagesDiv.appendChild(row);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function addTextMessage(text, id) {
+            addRow(id, escapeHtml(text));
+        }
+
+        function addFileMessage(filename, url, id) {
+            const ext = (filename.split('.').pop() || '').toLowerCase();
+            let html = '';
+
+            if (['png','jpg','jpeg','gif','webp'].includes(ext)) {
+                html = `<img src="${url}" alt="${escapeAttr(filename)}">`;
+            } else if (['mp4','webm'].includes(ext)) {
+                html = `<video src="${url}" controls></video>`;
+            } else if (['mp3','wav','ogg'].includes(ext)) {
+                html = `<audio controls src="${url}"></audio>`;
+            } else if (ext === 'pdf') {
+                html = `<iframe src="${url}"></iframe>`;
+            } else {
+                html = `<a href="${url}" target="_blank" rel="noopener">${escapeHtml(filename)}</a>`;
+            }
+
+            addRow(id, html);
+        }
+
+        function escapeHtml(s) {
+            return s.replace(/[&<>"']/g, c => ({
+                '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+            }[c]));
+        }
+        function escapeAttr(s) {
+            return s.replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>
