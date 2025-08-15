@@ -117,7 +117,10 @@
     <h2>💬 Private Chat</h2>
 
     <div id="messages"></div>
-
+    <div style="margin-bottom: 10px;">
+    <input id="username" type="text" placeholder="Enter your name..." 
+           style="padding: 8px; border-radius: 8px; border: none; width: 80%; max-width: 700px;">
+    </div>
     <div class="input-area">
         <input id="myMessage" type="text" placeholder="Type a message...">
         <button onclick="sendMessage()">Send</button>
@@ -134,19 +137,20 @@
             .then(list => {
                 list.forEach(msg => {
                     if (msg.type === "text") {
-                        addTextMessage(msg.text, msg.id);
+                        addTextMessage(msg.username, msg.text, msg.id);
                     } else if (msg.type === "file") {
-                        addFileMessage(msg.filename, msg.url, msg.id);
+                        addFileMessage(msg.filename, msg.url, msg.id, msg.username);
                     }
                 });
             });
 
-        socket.on('message', function(data) {
-            addTextMessage(data.text, data.id);
-        });
+       socket.on('message', function(data) {
+             addTextMessage(data.username, data.text, data.id);
+    });
+
 
         socket.on('file_message', function(data) {
-            addFileMessage(data.filename, data.url, data.id);
+            addFileMessage(data.filename, data.url, data.id, data.username);
         });
 
         socket.on('delete_message', function(id) {
@@ -156,22 +160,26 @@
 
         function sendMessage() {
             const input = document.getElementById('myMessage');
+            const username = document.getElementById('username').value.trim() || "no name";
             const val = input.value.trim();
             if (val !== "") {
-                socket.send(val);
+                socket.send({ username: username, text: val });
                 input.value = '';
             }
         }
 
         function sendFile() {
-            const fileInput = document.getElementById('fileInput');
-            if (fileInput.files.length > 0) {
-                const formData = new FormData();
-                formData.append('file', fileInput.files[0]);
-                fetch('/upload', { method: 'POST', body: formData });
-                fileInput.value = '';
-            }
-        }
+    const fileInput = document.getElementById('fileInput');
+    const username = document.getElementById('username').value.trim() || "no name";
+    if (fileInput.files.length > 0) {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        formData.append('username', username);
+        fetch('/upload', { method: 'POST', body: formData });
+        fileInput.value = '';
+    }
+}
+
 
         function addRow(id, htmlContent) {
             const row = document.createElement('div');
@@ -194,28 +202,30 @@
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        function addTextMessage(text, id) {
-            addRow(id, escapeHtml(text));
-        }
-
-        function addFileMessage(filename, url, id) {
-            const ext = (filename.split('.').pop() || '').toLowerCase();
-            let html = '';
-
-            if (['png','jpg','jpeg','gif','webp'].includes(ext)) {
-                html = `<img src="${url}" alt="${escapeAttr(filename)}">`;
-            } else if (['mp4','webm'].includes(ext)) {
-                html = `<video src="${url}" controls></video>`;
-            } else if (['mp3','wav','ogg'].includes(ext)) {
-                html = `<audio controls src="${url}"></audio>`;
-            } else if (ext === 'pdf') {
-                html = `<iframe src="${url}"></iframe>`;
-            } else {
-                html = `<a href="${url}" target="_blank" rel="noopener">${escapeHtml(filename)}</a>`;
+            function addTextMessage(username, text, id) {
+                addRow(id, `<strong>${escapeHtml(username)}:</strong> ${escapeHtml(text)}`);
             }
 
-            addRow(id, html);
+
+            function addFileMessage(filename, url, id, username) {
+        const ext = (filename.split('.').pop() || '').toLowerCase();
+        let html = `<strong>${escapeHtml(username)}:</strong><br>`;
+
+        if (['png','jpg','jpeg','gif','webp'].includes(ext)) {
+            html += `<img src="${url}" alt="${escapeAttr(filename)}">`;
+        } else if (['mp4','webm'].includes(ext)) {
+            html += `<video src="${url}" controls></video>`;
+        } else if (['mp3','wav','ogg'].includes(ext)) {
+            html += `<audio controls src="${url}"></audio>`;
+        } else if (ext === 'pdf') {
+            html += `<iframe src="${url}"></iframe>`;
+        } else {
+            html += `<a href="${url}" target="_blank" rel="noopener">${escapeHtml(filename)}</a>`;
         }
+
+        addRow(id, html);
+    }
+
 
         function escapeHtml(s) {
             return s.replace(/[&<>"']/g, c => ({
