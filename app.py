@@ -6,7 +6,7 @@ import json
 
 UPLOAD_FOLDER = 'uploads'
 CHAT_FILE = 'chat_history.json'
-CHAT_PASSWORD = "adminchat123"  # Change this to your desired password
+CHAT_PASSWORD = "red123"  # Change this to your desired password
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'  # Must be secret in real usage
@@ -122,3 +122,4 @@ def handle_delete(message_id):
 
 if __name__ == '__main__':
     socketio.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+
