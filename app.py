@@ -56,6 +56,24 @@ pinned_message = None    # {text, by, ts} or None
 def home():
     return redirect(url_for("login"))
 
+@app.route('/moderator/kick', methods=['POST'])
+def moderator_kick():
+    if "moderator" not in session:
+        return redirect(url_for('moderator_login'))
+
+    username = request.form['kick_username']
+    flash(f"Moderator kicked {username}", "info")
+    return redirect(url_for('moderator_panel'))
+
+@app.route('/moderator/mute', methods=['POST'])
+def moderator_mute():
+    if "moderator" not in session:
+        return redirect(url_for('moderator_login'))
+
+    username = request.form['mute_username']
+    flash(f"Moderator muted {username}", "info")
+    return redirect(url_for('moderator_panel'))
+
 @app.route("/moderator/login", methods=["GET", "POST"])
 def moderator_login():
     if request.method == "POST":
@@ -366,3 +384,4 @@ def handle_message(data):
 # --- run ---
 if __name__ == '__main__':
     socketio.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+
