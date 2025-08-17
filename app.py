@@ -56,6 +56,16 @@ pinned_message = None    # {text, by, ts} or None
 def home():
     return redirect(url_for("login"))
 
+@app.route('/moderator/unmute', methods=['POST'])
+def moderator_unmute():
+    if "moderator" not in session:
+        return redirect(url_for('moderator_login'))
+
+    username = request.form['unmute_username']
+    flash(f"Moderator unmuted {username}", "info")
+    return redirect(url_for('moderator_panel'))
+
+
 @app.route('/moderator/kick', methods=['POST'])
 def moderator_kick():
     if "moderator" not in session:
@@ -108,19 +118,20 @@ def moderator_home():
       <h3>Online Users</h3>
       <ul>{"".join(f"<li>{u}</li>" for u in online)}</ul>
       <h3>Actions</h3>
-      <form method="POST" action="/admin/kick">
-        <input name="username" placeholder="username">
-        <button type="submit">Kick</button>
-      </form>
-      <form method="POST" action="/admin/mute">
-        <input name="username" placeholder="username">
-        <input name="seconds" type="number" value="60">
-        <button type="submit">Mute</button>
-      </form>
-      <form method="POST" action="/admin/unmute">
-        <input name="username" placeholder="username">
-        <button type="submit">Unmute</button>
-      </form>
+      <form method="POST" action="/moderator/kick">
+      <input name="kick_username" placeholder="username">
+      <button type="submit">Kick</button>
+    </form>
+    
+    <form method="POST" action="/moderator/mute">
+      <input name="mute_username" placeholder="username">
+      <button type="submit">Mute</button>
+    </form>
+    
+    <form method="POST" action="/moderator/unmute">
+      <input name="unmute_username" placeholder="username">
+      <button type="submit">Unmute</button>
+    </form>
       <p><a href="/moderator/logout">Log out (moderator)</a></p>
     </div>
     """
@@ -384,4 +395,5 @@ def handle_message(data):
 # --- run ---
 if __name__ == '__main__':
     socketio.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+
 
