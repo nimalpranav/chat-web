@@ -49,24 +49,26 @@
 </head>
 <body>
     <div class="container">
-        <h2>Moderator Panel</h2>
-        <p>Welcome, {{ session['moderator'] }} 👋</p>
+        <h1>Moderator Panel</h1>
+    <p>Welcome, {{ username }}!</p>
 
-        <div class="actions">
-            <form action="/mute_user" method="post">
-                <input type="text" name="username" placeholder="Username to mute" required>
-                <button type="submit">Mute</button>
-            </form>
+    <h2>Available Actions</h2>
 
-            <form action="/kick_user" method="post">
-                <input type="text" name="username" placeholder="Username to kick" required>
-                <button type="submit">Kick</button>
-            </form>
-        </div>
+    <!-- Kick User -->
+    <form action="{{ url_for('moderator_kick') }}" method="post">
+        <label>Kick Username:</label>
+        <input type="text" name="kick_username" required>
+        <button type="submit">Kick</button>
+    </form>
 
-        <form action="/logout_moderator" method="get">
-            <button type="submit" class="logout">Logout</button>
-        </form>
-    </div>
+    <!-- Mute User -->
+    <form action="{{ url_for('moderator_mute') }}" method="post">
+        <label>Mute Username:</label>
+        <input type="text" name="mute_username" required>
+        <button type="submit">Mute</button>
+    </form>
+
+    <br>
+    <a href="{{ url_for('logout') }}">Logout</a>
 </body>
 </html>
