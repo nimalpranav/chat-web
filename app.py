@@ -8,7 +8,7 @@ UPLOAD_FOLDER = 'uploads'
 CHAT_FILE = 'chat_history.json'
 MESSAGES_CSV = 'chat_history.json'
 CHAT_PASSWORD = "red123"          # chat access
-ADMIN_PIN = "sanimal"           # admin login pin
+ADMIN_PIN = "adminnimalandkousek"           # admin login pin
 banned_users = set()
 messages = []
 admins = {"admin": "admin123"}
@@ -386,6 +386,7 @@ def handle_message(data):
 if __name__ == '__main__':
     # change host/port as needed; remove debug in production
     socketio.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+
 
 
 
