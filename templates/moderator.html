@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Moderator Panel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .actions {
+            margin-top: 20px;
+        }
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            background: #007bff;
+            color: white;
+            border-radius: 6px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .logout {
+            background: #dc3545;
+        }
+        .logout:hover {
+            background: #a71d2a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Moderator Panel</h2>
+        <p>Welcome, {{ session['moderator'] }} 👋</p>
+
+        <div class="actions">
+            <form action="/mute_user" method="post">
+                <input type="text" name="username" placeholder="Username to mute" required>
+                <button type="submit">Mute</button>
+            </form>
+
+            <form action="/kick_user" method="post">
+                <input type="text" name="username" placeholder="Username to kick" required>
+                <button type="submit">Kick</button>
+            </form>
+        </div>
+
+        <form action="/logout_moderator" method="get">
+            <button type="submit" class="logout">Logout</button>
+        </form>
+    </div>
+</body>
+</html>
