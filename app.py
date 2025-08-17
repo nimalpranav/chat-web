@@ -80,6 +80,7 @@ def download_file(filename):
 
 @app.route("/admin/unban/<username>")
 def unban_user(username):
+    admin_required()
     if username in banned_users:
         banned_users.remove(username)
         socketio.emit('system', {'text': f'{username} was unbanned.'})
@@ -385,4 +386,5 @@ def handle_message(data):
 if __name__ == '__main__':
     # change host/port as needed; remove debug in production
     socketio.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+
 
