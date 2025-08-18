@@ -17,6 +17,13 @@ moderators = set()  # usernames of logged-in moderators
 MODERATOR_PIN = "mod1234"
 VALID_MODERATORS = set()
 MOD_PIN = "mod1234"
+SUPER_MOD_PIN = "supermod5678"
+
+VALID_SUPER_MODS = set()
+VALID_MODERATORS = set()
+
+super_moderators = set()   # logged-in supermods
+moderators = set()   
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'  # change for production
@@ -51,38 +58,58 @@ muted_until = {}         # sid -> epoch seconds
 chat_locked = False
 pinned_message = None    # {text, by, ts} or None
 
+
+def supermod_required():
+    if not session.get('is_supermod'):
+        abort(403)
 # --------- pages ---------
 @app.route("/")
 def home():
     return redirect(url_for("login"))
 
-@app.route('/moderator/unmute', methods=['POST'])
-def moderator_unmute():
-    if "moderator" not in session:
-        return redirect(url_for('moderator_login'))
-
-    username = request.form['unmute_username']
-    flash(f"Moderator unmuted {username}", "info")
-    return redirect(url_for('moderator_panel'))
-
-
 @app.route('/moderator/kick', methods=['POST'])
 def moderator_kick():
-    if "moderator" not in session:
+    if not session.get("is_moderator"):
         return redirect(url_for('moderator_login'))
 
-    username = request.form['kick_username']
-    flash(f"Moderator kicked {username}", "info")
-    return redirect(url_for('moderator_panel'))
+    username = request.form['kick_username'].strip()
+    sid = user_to_sid.get(username)
+    if sid:
+        socketio.emit('system', {'text': f'{username} was kicked by moderator {session.get("username")}'})
+        disconnect(sid=sid, namespace='/')
+
+    return redirect(url_for('moderator_home'))
+
 
 @app.route('/moderator/mute', methods=['POST'])
 def moderator_mute():
-    if "moderator" not in session:
+    if not session.get("is_moderator"):
         return redirect(url_for('moderator_login'))
 
-    username = request.form['mute_username']
-    flash(f"Moderator muted {username}", "info")
-    return redirect(url_for('moderator_panel'))
+    username = request.form['mute_username'].strip()
+    sid = user_to_sid.get(username)
+    if sid:
+        muted_until[sid] = time.time() + 60  # default mute = 60s
+        socketio.emit('muted', {'until': muted_until[sid], 'username': username}, to=sid)
+        socketio.emit('system', {'text': f'{username} was muted by moderator {session.get("username")} for 60s'})
+
+    return redirect(url_for('moderator_home'))
+
+
+@app.route('/moderator/unmute', methods=['POST'])
+def moderator_unmute():
+    if not session.get("is_moderator"):
+        return redirect(url_for('moderator_login'))
+
+    username = request.form['unmute_username'].strip()
+    sid = user_to_sid.get(username)
+    if sid and sid in muted_until:
+        muted_until.pop(sid, None)
+        socketio.emit('muted', {'until': 0, 'username': username}, to=sid)
+        socketio.emit('system', {'text': f'{username} was unmuted by moderator {session.get("username")}'})
+
+    return redirect(url_for('moderator_home'))
+
 
 @app.route("/moderator/login", methods=["GET", "POST"])
 def moderator_login():
@@ -101,6 +128,54 @@ def moderator_login():
     
     return render_template("moderator_login.html")
     
+
+@app.route("/supermod/login", methods=["GET", "POST"])
+def supermod_login():
+    if request.method == "POST":
+        username = request.form.get("username")
+        pin = request.form.get("pin")
+
+        if username in VALID_SUPER_MODS and pin == SUPER_MOD_PIN:
+            session["authenticated"] = True
+            session["is_supermod"] = True
+            session["username"] = username
+            super_moderators.add(username)
+            return redirect("/supermod")
+        else:
+            flash("Invalid username or PIN!", "error")
+
+    return render_template("supermod_login.html")
+
+@app.route('/supermod')
+def supermod_home():
+    supermod_required()
+    online = sorted(list(user_to_sid.keys()))
+    return f"""
+    <div>
+      <h2>Super Moderator Panel</h2>
+      <h3>Online Users</h3>
+      <ul>{"".join(f"<li>{u}</li>" for u in online)}</ul>
+      <h3>Actions</h3>
+      <form method="POST" action="/supermod/kick">
+        <input name="kick_username" placeholder="username">
+        <button type="submit">Kick</button>
+      </form>
+      <form method="POST" action="/supermod/mute">
+        <input name="mute_username" placeholder="username">
+        <button type="submit">Mute</button>
+      </form>
+      <form method="POST" action="/supermod/unmute">
+        <input name="unmute_username" placeholder="username">
+        <button type="submit">Unmute</button>
+      </form>
+      <form method="POST" action="/supermod/ban">
+        <input name="ban_username" placeholder="username">
+        <button type="submit">Ban</button>
+      </form>
+      <p><a href="/supermod/logout">Log out (supermod)</a></p>
+    </div>
+    """
+
 
 @app.route("/chat")
 def chat():
@@ -385,7 +460,7 @@ def handle_message(data):
     if not text:
         return
 
-    username = (data.get('username') or 'Anonymous').strip()
+    username = (data.get('username') or 'no name').strip()
     message_id = str(uuid.uuid4())
     message_data = {"id": message_id, "username": username, "text": text, "type": "text"}
     messages.append(message_data)
@@ -395,5 +470,4 @@ def handle_message(data):
 # --- run ---
 if __name__ == '__main__':
     socketio.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
-
 
